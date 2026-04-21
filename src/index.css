@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply bg-white text-brand-900 antialiased;
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  button {
+    @apply transition-all duration-300;
+  }
+}
+
+@layer components {
+  .container-shell {
+    @apply container mx-auto;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-brand-900 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-full border border-brand-900 px-5 py-3 text-sm font-semibold text-brand-900 hover:bg-brand-900 hover:text-white;
+  }
+
+  .section-title {
+    @apply text-2xl font-bold tracking-tight md:text-3xl;
+  }
+
+  .section-subtitle {
+    @apply mt-2 max-w-2xl text-sm leading-6 text-brand-600 md:text-base;
+  }
+
+  .card-surface {
+    @apply rounded-3xl border border-brand-100 bg-white shadow-card;
+  }
+
+  .input-base {
+    @apply w-full rounded-2xl border border-brand-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500;
+  }
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .product-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
