@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Plus, Search, Pencil, Trash2, X, ChevronLeft, ChevronRight,
+  Plus, Search, Pencil, Trash2, X, ChevronLeft, ChevronRight, Camera,
   Package, AlertTriangle, CheckCircle, Loader2, ChevronDown, Layers
 } from 'lucide-react';
 import {
   getProducts, createProduct, updateProduct, deleteProduct,
   getVariantsByProduct, createVariant, updateVariant, deleteVariant,
-  getColors, getSizes,
+  getColors, getSizes, uploadProductImages,
 } from '../../services/adminService';
 import { getDepartments } from '../../services/departmentService';
 import { getCategoriesByDepartmentId } from '../../services/categoryService';
@@ -109,6 +109,12 @@ function SubCategoryCombobox({ mode, categoryId, value, onChange }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  /* Prevent dropdown close on trigger click */
+  const handleTriggerClick = useCallback((e) => {
+    e.stopPropagation();
+    setOpen(p => !p);
+  }, []); 
+
   const filtered = options.filter(o =>
     o.label.toLowerCase().includes(search.toLowerCase()) ||
     o.meta.toLowerCase().includes(search.toLowerCase())
@@ -139,8 +145,8 @@ function SubCategoryCombobox({ mode, categoryId, value, onChange }) {
       </button>
 
       {/* Dropdown */}
-      {open && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+{open && (
+        <div className="absolute z-[1000] mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"> 
           {/* Search input (chỉ khi mode=all) */}
           {mode === 'all' && (
             <div className="p-2 border-b border-slate-100">
@@ -156,6 +162,7 @@ function SubCategoryCombobox({ mode, categoryId, value, onChange }) {
               </div>
             </div>
           )}
+
 
           {/* Options list */}
           <div className="max-h-52 overflow-y-auto">
@@ -199,6 +206,9 @@ function ProductModal({ initial, onClose, onSaved }) {
   const editCategoryId = initial?.categoryId ?? null;
 
   const [form, setForm]     = useState(initial ? { ...EMPTY_FORM, ...initial } : { ...EMPTY_FORM });
+  const [colorGroups, setColorGroups] = useState([{ colorId: '', images: [] }]);
+  const [colors, setColors] = useState([]);  
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState('');
 
@@ -208,6 +218,45 @@ function ProductModal({ initial, onClose, onSaved }) {
       [field]: value,
       ...(field === 'name' && !isEdit ? { slug: slugify(value) } : {}),
     }));
+
+  // Load colors
+  useEffect(() => {
+    getColors().then(data => {
+      setColors(Array.isArray(data) ? data : data?.colorResponseList ?? data ?? []);
+    }).catch(console.error);
+  }, []);
+
+// Fixed z-index applied to all modals
+  const addColorGroup = () => {
+    setColorGroups(prev => [...prev, { colorId: '', images: [] }]);
+  };
+
+  // Update group field
+  const updateGroup = (index, field, value) => {
+    setColorGroups(prev => prev.map((g, i) => 
+      i === index ? { ...g, [field]: value } : g
+    ));
+  };
+
+  // Add images to group
+  const addImagesToGroup = (index, e) => {
+    const newFiles = Array.from(e.target.files);
+    setColorGroups(prev => prev.map((g, i) => 
+      i === index ? { ...g, images: [...g.images, ...newFiles] } : g
+    ));
+  };
+
+  // Remove image from group
+  const removeImageFromGroup = (groupIndex, imageIndex) => {
+    setColorGroups(prev => prev.map((g, gi) => 
+      gi === groupIndex ? { ...g, images: g.images.filter((_, ii) => ii !== imageIndex) } : g
+    ));
+  };
+
+  // Remove group
+  const removeGroup = (index) => {
+    setColorGroups(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -228,19 +277,38 @@ function ProductModal({ initial, onClose, onSaved }) {
         price:             Number(form.price),
         discount_percent:  Number(form.discount_percent),
       };
-      if (isEdit) await updateProduct(initial.id, body);
-      else        await createProduct(body);
+
+      let productId;
+      if (isEdit) {
+        await updateProduct(initial.id, body);
+        productId = initial.id;
+      } else {
+        const newProduct = await createProduct(body);
+        productId = newProduct.id || newProduct.productId;
+      }
+
+  // Upload all color groups - only for EDIT mode
+      if (isEdit && colorGroups.some(g => g.colorId && g.images.length > 0)) {
+        setUploading(true);
+        for (const group of colorGroups) {
+          if (group.colorId && group.images.length > 0) {
+            await uploadProductImages(Number(productId), Number(group.colorId), group.images);
+          }
+        }
+      }
+
       onSaved();
     } catch (error) {
       setErr(error.message ?? 'Có lỗi xảy ra, vui lòng thử lại.');
     } finally {
       setSaving(false);
+      setUploading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm pointer-events-none">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col pointer-events-auto z-[1001]"> 
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
@@ -336,6 +404,103 @@ function ProductModal({ initial, onClose, onSaved }) {
             </div>
           </div>
 
+
+          {/* Color Groups - MULTIPLE COLORS + IMAGES - EDIT ONLY */}
+          {isEdit && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-4">
+                Thêm/Cập nhật màu sắc &amp; ảnh
+              </label>
+              {colorGroups.map((group, groupIndex) => (
+                <div key={groupIndex} className="border border-slate-200 rounded-2xl p-4 mb-4 bg-slate-50/30">
+
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-slate-800">Nhóm màu {groupIndex + 1}</h4>
+                    <button
+                      type="button"
+                      onClick={() => removeGroup(groupIndex)}
+                      className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Color select */}
+                  <div className="mb-3">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Màu sắc *</label>
+                    <select
+                      value={group.colorId}
+                      onChange={e => updateGroup(groupIndex, 'colorId', e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm bg-white"
+                    >
+                      <option value="">Chọn màu</option>
+                      {colors.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Image Upload */}
+                  <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 hover:border-violet-300 bg-white text-center group relative">
+                    <input
+                      id={`image-upload-${groupIndex}`}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={e => addImagesToGroup(groupIndex, e)}
+                    />
+                    <label 
+                      htmlFor={`image-upload-${groupIndex}`}
+                      className="block w-full h-full cursor-pointer flex flex-col items-center justify-center pointer-events-auto"
+                    >
+                      <Package className="w-12 h-12 text-slate-400 group-hover:text-violet-500 transition-colors mb-2" />
+                      <p className="text-sm font-medium text-slate-700 group-hover:text-violet-600 mb-1 transition-colors">Click chọn ảnh cho màu này</p>
+                      <p className="text-xs text-slate-400">PNG, JPG, max 5MB</p>
+                    </label>
+                  </div> 
+
+
+                  {group.images.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {group.images.map((img, imgIndex) => (
+                        <div key={imgIndex} className="relative group">
+                          <img
+                            src={URL.createObjectURL(img)}
+                            alt="Preview"
+                            className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImageFromGroup(groupIndex, imgIndex)}
+                            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <span className="text-xs text-slate-500 mt-1">{group.images.length} ảnh</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+
+              <button
+                type="button"
+                onClick={addColorGroup}
+                className="w-full flex items-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 border-2 border-dashed border-emerald-200 text-sm font-semibold text-emerald-700 rounded-xl transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Thêm màu &amp; ảnh mới
+              </button>
+              {colorGroups.length === 0 && (
+                <p className="text-sm text-slate-500 mt-2 text-center">Chưa có màu nào. Nhấn nút trên để thêm.</p>
+              )}
+            </div>
+          )}
+
+
           {/* Short description */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mô tả ngắn</label>
@@ -373,8 +538,8 @@ function ProductModal({ initial, onClose, onSaved }) {
             disabled={saving}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors"
           >
-            {saving
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang lưu...</>
+            {(saving || uploading)
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> {uploading ? 'Đang upload ảnh...' : 'Đang lưu...'}</>
               : <><CheckCircle className="w-4 h-4" /> {isEdit ? 'Cập nhật' : 'Thêm mới'}</>
             }
           </button>
@@ -481,8 +646,8 @@ function VariantModal({ product, onClose }) {
   const sizeName   = (id) => sizes.find(s => s.id === Number(id))?.name ?? id;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+  <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm pointer-events-none">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col pointer-events-auto z-[1001] relative"> 
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
@@ -669,8 +834,8 @@ function DeleteConfirm({ product, onClose, onDeleted }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+  <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm pointer-events-none">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 pointer-events-auto z-[1001] relative"> 
         <div className="flex items-center justify-center w-14 h-14 bg-red-100 rounded-2xl mx-auto mb-4">
           <Trash2 className="w-7 h-7 text-red-500" />
         </div>
@@ -705,6 +870,8 @@ export default function AdminProducts() {
   const [editTarget, setEditTarget]       = useState(null);
   const [deleteTarget, setDeleteTarget]   = useState(null);
   const [variantProduct, setVariantProduct] = useState(null);
+  const [imageUploadProduct, setImageUploadProduct] = useState(null);
+  
   const LIMIT = 10;
 
   const load = useCallback(async (kw = keyword, p = page) => {
@@ -751,6 +918,10 @@ export default function AdminProducts() {
     });
     setShowModal(true);
   };
+
+  const openImageUpload = useCallback((product) => {
+    setImageUploadProduct(product);
+  }, []);
 
   return (
     <div className="space-y-5">
@@ -861,6 +1032,7 @@ export default function AdminProducts() {
 
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1.5 justify-end">
+
                           <button
                             onClick={() => setVariantProduct(p)}
                             className="p-2 rounded-lg hover:bg-violet-50 text-slate-400 hover:text-violet-600 transition-colors"
@@ -869,12 +1041,20 @@ export default function AdminProducts() {
                             <Layers className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => openImageUpload(p)}
+                            className="p-2 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors"
+                            title="Upload ảnh sản phẩm"
+                          >
+                            <Camera className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => openEdit(p)}
                             className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
                             title="Chỉnh sửa"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
+                          
                           <button
                             onClick={() => setDeleteTarget(p)}
                             className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
@@ -882,6 +1062,7 @@ export default function AdminProducts() {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+
                         </div>
                       </td>
                     </tr>
@@ -932,6 +1113,12 @@ export default function AdminProducts() {
           onClose={() => setVariantProduct(null)}
         />
       )}
+      {imageUploadProduct && (
+        <ImageUploadModal 
+          product={imageUploadProduct} 
+          onClose={() => setImageUploadProduct(null)} 
+        />
+      )}
       {deleteTarget && (
         <DeleteConfirm
           product={deleteTarget}
@@ -939,6 +1126,155 @@ export default function AdminProducts() {
           onDeleted={() => { setDeleteTarget(null); load(); }}
         />
       )}
+    </div>
+  );
+}
+
+function ImageUploadModal({ product, onClose }) {
+  const [colors, setColors] = useState([]);
+  const [selectedColorId, setSelectedColorId] = useState('');
+  const [files, setFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getColors().then(setColors).catch(console.error);
+  }, []);
+
+  const handleUpload = async () => {
+    if (!selectedColorId || files.length === 0) {
+      setError('Chọn màu và ảnh');
+      return;
+    }
+    setUploading(true);
+    try {
+      await uploadProductImages(product.id, Number(selectedColorId), files);
+      onClose();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const addFiles = (e) => {
+    setFiles(prev => [...prev, ...Array.from(e.target.files)]);
+    setError('');
+  };
+
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900">Thêm ảnh - {product.name}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              {error}
+            </div>
+          )}
+          
+          <div className="relative">
+            <label className="block text-sm font-medium text-slate-700 mb-2">Chọn màu *</label>
+            <div className="relative z-20">
+              <select 
+                id="color-select"
+                value={selectedColorId}
+                onChange={async (e) => {
+                  console.log('Color changed:', e.target.value);
+                  setSelectedColorId(e.target.value);
+                }}
+                className="w-full p-3 pr-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-400 appearance-none bg-white cursor-pointer relative z-20"
+              >
+                <option value="">Chọn màu</option>
+                {colors.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Ảnh sản phẩm</label>
+            <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-emerald-300 transition-colors relative">
+              <input
+                id="image-upload-modal"
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={addFiles}
+                className="sr-only"
+              />
+              <label 
+                htmlFor="image-upload-modal" 
+                className="cursor-pointer block w-full h-full flex flex-col items-center justify-center"
+              >
+                <Package className="w-12 h-12 mx-auto mb-3 text-slate-400 hover:text-emerald-500 transition-colors" />
+                <p className="text-slate-600 mb-1 hover:text-emerald-600 transition-colors">Click chọn ảnh</p>
+                <p className="text-xs text-slate-400">{files.length} ảnh đã chọn</p>
+              </label>
+            </div>
+          </div>
+
+          {files.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 rounded-xl">
+              {files.map((file, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt="Preview"
+                    className="w-full h-20 object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={() => removeFile(index)}
+                    className="absolute -top-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 p-6 border-t border-slate-100">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 px-4 border border-slate-200 rounded-xl font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            Huỷ
+          </button>
+          <button
+            onClick={handleUpload}
+            disabled={uploading || !selectedColorId || files.length === 0}
+            className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors"
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Đang upload...
+              </>
+            ) : (
+              'Upload ảnh'
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

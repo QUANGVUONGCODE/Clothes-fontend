@@ -71,34 +71,51 @@ export const deleteVariant = (id: number) =>
   apiClient(`${VARIANTS}/${id}`, { method: 'DELETE' });
 
 /* ── Colors & Sizes ── */
-export const getColors   = ()                         => apiClient(COLORS);
+export const getColors   = ()                         => apiClient(`${COLORS}?page=0&limit=100`);
 export const createColor = (body: object)             => apiClient(COLORS,          { method: 'POST',   body: JSON.stringify(body) });
 export const updateColor = (id: number, body: object) => apiClient(`${COLORS}/${id}`, { method: 'PUT',    body: JSON.stringify(body) });
 export const deleteColor = (id: number)               => apiClient(`${COLORS}/${id}`, { method: 'DELETE' });
 
-export const getSizes    = ()                         => apiClient(SIZES);
+export const getSizes    = ()                         => apiClient(`${SIZES}?page=0&limit=100`);
 export const createSize  = (body: object)             => apiClient(SIZES,           { method: 'POST',   body: JSON.stringify(body) });
 export const updateSize  = (id: number, body: object) => apiClient(`${SIZES}/${id}`,  { method: 'PUT',    body: JSON.stringify(body) });
 export const deleteSize  = (id: number)               => apiClient(`${SIZES}/${id}`,  { method: 'DELETE' });
 
+/* ── Product Images ── */
+const IMAGES_API = '/shopclothes/api/v1/product-images/upload';
+
+export const uploadProductImages = async (productId: number, colorId: number, files: File[]) => {
+  const formData = new FormData();
+  formData.append('productId', productId.toString());
+  formData.append('colorId', colorId.toString());
+  
+  for (const file of files) {
+    formData.append('files', file);
+  }
+  
+  return apiClient(IMAGES_API, {
+    method: 'POST',
+    body: formData
+  });
+};
+
+/* ── Categories CRUD ── */
 const DEPTS_API = '/shopclothes/api/v1/departments';
 const CATS_API  = '/shopclothes/api/v1/categories';
 const SUBS_API  = '/shopclothes/api/v1/sub-categories';
 
-/* ── Departments CRUD ── */
 export const getAllDepartments  = ()                         => apiClient(DEPTS_API);
 export const createDepartment  = (body: object)             => apiClient(DEPTS_API,           { method: 'POST',   body: JSON.stringify(body) });
 export const updateDepartment  = (id: number, body: object) => apiClient(`${DEPTS_API}/${id}`, { method: 'PUT',    body: JSON.stringify(body) });
 export const deleteDepartment  = (id: number)               => apiClient(`${DEPTS_API}/${id}`, { method: 'DELETE' });
 
-/* ── Categories CRUD ── */
 export const getCatsByDept     = (deptId: number)           => apiClient(`${CATS_API}/${deptId}`);
 export const createCategory    = (body: object)             => apiClient(CATS_API,            { method: 'POST',   body: JSON.stringify(body) });
 export const updateCategory    = (id: number, body: object) => apiClient(`${CATS_API}/${id}`,  { method: 'PUT',    body: JSON.stringify(body) });
 export const deleteCategory    = (id: number)               => apiClient(`${CATS_API}/${id}`,  { method: 'DELETE' });
 
-/* ── SubCategories CRUD ── */
 export const getSubCatsByCat   = (catId: number)            => apiClient(`${SUBS_API}/${catId}`);
 export const createSubCategory = (body: object)             => apiClient(SUBS_API,            { method: 'POST',   body: JSON.stringify(body) });
 export const updateSubCategory = (id: number, body: object) => apiClient(`${SUBS_API}/${id}`,  { method: 'PUT',    body: JSON.stringify(body) });
 export const deleteSubCategory = (id: number)               => apiClient(`${SUBS_API}/${id}`,  { method: 'DELETE' });
+

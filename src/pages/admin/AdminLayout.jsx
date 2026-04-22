@@ -184,15 +184,15 @@ export default function AdminLayout({ children }) {
       )}
 
       {/* Mobile overlay */}
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
+{mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-10 flex">
           <div className="flex h-full">
             {primarySidebar(false)}
           </div>
           <button
             type="button"
             aria-label="Đóng menu"
-            className="flex-1 bg-black/50 cursor-default"
+            className="flex-1 bg-black/50 cursor-default pointer-events-auto"
             onClick={() => setMobileOpen(false)}
             onKeyDown={(e) => e.key === 'Escape' && setMobileOpen(false)}
           />

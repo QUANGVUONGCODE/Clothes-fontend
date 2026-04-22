@@ -33,6 +33,7 @@ export default function AdminVariants() {
     product_id: '',
     color_id: '',
     size_id: '',
+    sku: '',
     stock_quantity: 0,
   });
 
@@ -40,6 +41,7 @@ export default function AdminVariants() {
   const [deletingId, setDeletingId] = useState(null);
   const [search, setSearch] = useState('');
   const [filterProduct, setFilterProduct] = useState('');
+  const [error, setError] = useState(null);
 
   const resetForm = () => {
     setForm({
@@ -63,8 +65,8 @@ export default function AdminVariants() {
       ]);
 
       setProducts(prods?.result?.productResponseLists ?? []);
-      setColors(cols?.result ?? []);
-      setSizes(szs?.result ?? []);
+      setColors(cols?.result?.colorResponseList ?? cols?.result ?? []);
+      setSizes(szs?.result?.sizeResponseList ?? szs?.result ?? []);
 
       // Sửa đúng chỗ này: API trả về productVariantResponseList ở root
       setVariants(vars?.productVariantResponseList ?? []);
@@ -75,6 +77,7 @@ export default function AdminVariants() {
       console.log('Loaded variants:', vars);
     } catch (error) {
       console.error('Load data failed:', error);
+      setError('Không tải được dữ liệu từ backend. Kiểm tra server localhost:8080 và console.');
       setVariants([]);
       setProducts([]);
       setColors([]);
@@ -103,7 +106,9 @@ export default function AdminVariants() {
         product_id: Number(form.product_id),
         color_id: Number(form.color_id),
         size_id: Number(form.size_id),
+        sku: form.sku || `${products.find(p => p.id == form.product_id)?.slug ?? ''}-${colors.find(c => c.id == form.color_id)?.name ?? ''}-${sizes.find(s => s.id == form.size_id)?.name ?? ''}`.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
         stock_quantity: Number(form.stock_quantity) || 0,
+        status: 'ACTIVE'
       };
 
       if (editing) {
@@ -281,9 +286,22 @@ export default function AdminVariants() {
               <label className="text-xs font-medium text-slate-500">Size</label>
               <select
                 value={form.size_id}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, size_id: e.target.value }))
-                }
+                onChange={(e) => {
+                  const sizeId = e.target.value;
+                  setForm((prev) => {
+                    // Auto-generate SKU
+                    let sku = '';
+                    if (prev.product_id && prev.color_id && sizeId) {
+                      const product = products.find(p => p.id == prev.product_id);
+                      const color = colors.find(c => c.id == prev.color_id);
+                      const size = sizes.find(s => s.id == sizeId);
+                      if (product && color && size) {
+                        sku = `${product.slug}-${color.name}-${size.name}`.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                      }
+                    }
+                    return { ...prev, size_id: sizeId, sku };
+                  });
+                }}
                 className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400"
                 required
               >
@@ -294,6 +312,17 @@ export default function AdminVariants() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-slate-500">SKU <span className="text-slate-400">(auto)</span></label>
+              <input
+                type="text"
+                value={form.sku}
+                onChange={(e) => setForm(prev => ({ ...prev, sku: e.target.value.toLowerCase().replace(/\s+/g, '-') }))}
+                placeholder="Auto-generated..."
+                className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400 font-mono"
+              />
             </div>
 
             <div className="flex flex-col gap-1 md:col-span-2">
@@ -348,7 +377,20 @@ export default function AdminVariants() {
         ) : filteredVariants.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Layers className="w-12 h-12 text-slate-200" />
-            <p className="text-slate-400 text-sm">Chưa có biến thể nào</p>
+            {error ? (
+              <p className="text-red-500 text-sm font-medium max-w-md text-center">{error}</p>
+            ) : products.length === 0 || colors.length === 0 || sizes.length === 0 ? (
+              <div className="text-center">
+                <p className="text-slate-400 text-sm mb-1">Chưa có dữ liệu cần thiết</p>
+                <div className="text-xs text-slate-500 space-y-0.5">
+                  <p>• Tạo sản phẩm: <a href="/admin/products" className="text-violet-600 hover:underline font-medium">AdminProducts</a></p>
+                  <p>• Tạo màu sắc: <a href="/admin/colors" className="text-violet-600 hover:underline font-medium">AdminColors</a></p>
+                  <p>• Tạo kích thước: <a href="/admin/sizes" className="text-violet-600 hover:underline font-medium">AdminSizes</a></p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-400 text-sm">Chưa có biến thể nào</p>
+            )}
           </div>
         ) : (
           <table className="w-full text-sm">

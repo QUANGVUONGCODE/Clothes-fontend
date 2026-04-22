@@ -17,24 +17,24 @@ export default function HomePage() {
       <HeroBanner banners={heroBanners} />
       <SubCategoryShowcase />
       <ProductKeywordSection
-        title="SẢN PHẨM PICKLEBALL"
-        keyword="pickleball"
+        title="SẢN PHẨM Áo NAM"
+        keyword="Áo"
         limit={10}
-        viewMoreLink="/products?keyword=pickleball"
+        viewMoreLink="/products?keyword=Áo"
       />
 
       <ProductKeywordSection
-        title="SẢN PHẨM PICKLEBALL"
+        title="SẢN PHẨM QUẦN LEGGING"
         keyword="legging"
         limit={10}
         viewMoreLink="/products?keyword=legging"
       />
 
       <ProductKeywordSection
-        title="SẢN PHẨM PICKLEBALL"
-        keyword="quần lót"
+        title="SẢN PHẨM QUẦN"
+        keyword="quần"
         limit={10}
-        viewMoreLink="/products?keyword=quần lót"
+        viewMoreLink="/products?keyword=quần"
       />
 
       <TestimonialSection />
