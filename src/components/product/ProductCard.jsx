@@ -41,11 +41,24 @@ export default function ProductCard({ product }) {
           ) : null}
         </div>
         <div className="mt-4 flex items-center gap-2">
-          {product.colors.slice(0, 4).map((color) => (
-            <span key={color} className="rounded-full border border-brand-200 px-2 py-1 text-[11px] text-brand-600">
-              {color}
-            </span>
-          ))}
+          {product.colors.slice(0, 6).map((color, idx) => {
+            const isObj = typeof color === 'object' && color !== null;
+            const colorName = isObj ? color.name : color;
+            const colorCode = isObj ? color.code : null;
+            const colorKey = isObj ? color.id ?? colorName : color;
+
+            return (
+              <span
+                key={colorKey ?? idx}
+                className="h-7 w-7 rounded-full border-2 shadow-sm"
+                style={{
+                  backgroundColor: colorCode || '#ddd',
+                  borderColor: idx === 0 ? 'rgb(59 130 246)' : 'rgb(214 220 228)',
+                }}
+                title={colorName}
+              />
+            );
+          })}
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {product.sizes.slice(0, 4).map((size) => (

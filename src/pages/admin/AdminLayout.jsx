@@ -24,12 +24,12 @@ const NAV_ITEMS = [
       { to: '/admin/orders',                   label: 'Tất cả',       icon: ClipboardList },
       { to: '/admin/orders?status=PENDING',    label: 'Chờ xử lý',    icon: Clock         },
       { to: '/admin/orders?status=CONFIRMED',  label: 'Đã xác nhận',  icon: CheckCircle   },
-      { to: '/admin/orders?status=SHIPPING',   label: 'Đang giao',    icon: Truck         },
+      { to: '/admin/orders?status=SHIPPED',   label: 'Đang giao',    icon: Truck         },
       { to: '/admin/orders?status=COMPLETED',  label: 'Hoàn thành',   icon: CheckCircle   },
       { to: '/admin/orders?status=CANCELLED',  label: 'Đã huỷ',       icon: XCircle       },
     ],
   },
-  { to: '/admin/users',       icon: Users,     label: 'Người dùng' },
+
   {
     to: '/admin/categories', icon: Tag, label: 'Danh mục',
     subItems: [

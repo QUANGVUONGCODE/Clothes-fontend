@@ -235,6 +235,11 @@ function ColorsSection() {
 ════════════════════════════════════════ */
 function SizeModal({ initial, onClose, onSaved }) {
   const [name, setName]     = useState(initial?.name ?? '');
+  const [sortOrder, setSortOrder] = useState(
+    initial?.sort_order ?? initial?.sortOrder ?? ''
+  );
+
+
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState('');
   const isEdit = !!initial?.id;
@@ -242,10 +247,15 @@ function SizeModal({ initial, onClose, onSaved }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) { setErr('Vui lòng nhập tên size.'); return; }
+
+    const sortOrderNum = Number(sortOrder);
+    if (!Number.isFinite(sortOrderNum)) { setErr('Vui lòng nhập sort_order hợp lệ.'); return; }
+
     setSaving(true);
     try {
-      if (isEdit) await updateSize(initial.id, { name: name.trim() });
-      else        await createSize({ name: name.trim() });
+      const payload = { name: name.trim(), sort_order: sortOrderNum };
+      if (isEdit) await updateSize(initial.id, payload);
+      else        await createSize(payload);
       onSaved();
     } catch (error) {
       setErr(error.message ?? 'Có lỗi xảy ra.');
@@ -267,6 +277,17 @@ function SizeModal({ initial, onClose, onSaved }) {
               autoFocus value={name} onChange={e => setName(e.target.value)}
               placeholder="VD: S, M, L, XL, 38, 39..."
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Sort order</label>
+            <input
+              type="number"
+              value={sortOrder}
+              onChange={e => setSortOrder(e.target.value)}
+              placeholder="VD: 1"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm font-mono"
             />
           </div>
           <div className="flex items-center justify-end gap-3 pt-1">

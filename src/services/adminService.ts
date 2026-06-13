@@ -1,4 +1,5 @@
 import { apiClient } from '../utils/apiClient';
+import type { URLSearchParamsInit } from 'react-router-dom';
 
 const DASHBOARD = '/shopclothes/api/v1/dashboard';
 const PRODUCTS  = '/shopclothes/api/v1/products';
@@ -7,6 +8,7 @@ const USERS     = '/shopclothes/api/v1/users';
 const VARIANTS  = '/shopclothes/api/v1/product-variants';
 const COLORS    = '/shopclothes/api/v1/colors';
 const SIZES     = '/shopclothes/api/v1/sizes';
+const INVOICES  = '/shopclothes/api/v1/invoices';
 
 /* ── Dashboard ── */
 export const getDashboardOverview = () => apiClient(`${DASHBOARD}/overview`);
@@ -28,19 +30,24 @@ export const deleteProduct = (id: number) =>
   apiClient(`${PRODUCTS}/${id}`, { method: 'DELETE' });
 
 /* ── Orders (admin) ── */
-export const getAllOrders = (page = 0, limit = 10, status = '') => {
-  const statusParam = status ? `&status=${status}` : '';
-  return apiClient(`${ORDERS}?page=${page}&limit=${limit}${statusParam}`);
+export const getAllOrders = (page = 0, limit = 10, status = '', keyword = '') => {
+  // Backend requirement: chỉ cần keyword để search.
+  // Tránh truyền status vì backend có thể không áp dụng theo status khi search.
+  const keywordParam = keyword ? `&keyword=${encodeURIComponent(keyword)}` : '';
+  return apiClient(`${ORDERS}?page=${page}&limit=${limit}${keywordParam}`);
 };
 
 export const getOrderDetail = (id: number) =>
   apiClient(`${ORDERS}/${id}`);
 
 export const updateOrderStatus = (id: number, status: string) =>
-  apiClient(`${ORDERS}/${id}/status`, {
+  apiClient(`${ORDERS}/status/${id}`, {
     method: 'PUT',
     body: JSON.stringify({ status }),
   });
+
+export const getInvoiceByOrderCode = (orderCode: string) =>
+  apiClient(`${INVOICES}/order-code/${encodeURIComponent(orderCode)}`);
 
 /* ── Users (admin) ── */
 export const getAllUsers = (page = 0, limit = 10, keyword = '') => {
@@ -55,6 +62,15 @@ export const toggleUserActive = (id: number, isActive: boolean) =>
   });
 
 /* ── Product Variants ── */
+export const getVariantsSearch = (params: { productId?: number; colorId?: number; sizeId?: number } = {}) => {
+  const { productId, colorId, sizeId } = params;
+  const query = new URLSearchParams();
+  if (productId) query.append('product_id', productId.toString());
+  if (colorId) query.append('color_id', colorId.toString());
+  if (sizeId) query.append('size_id', sizeId.toString());
+  return apiClient(`${VARIANTS}/search?${query.toString()}`);
+};
+
 export const getVariantsByProduct = (productId: number) =>
   apiClient(`${VARIANTS}/search?product_id=${productId}`);
 
@@ -118,4 +134,31 @@ export const getSubCatsByCat   = (catId: number)            => apiClient(`${SUBS
 export const createSubCategory = (body: object)             => apiClient(SUBS_API,            { method: 'POST',   body: JSON.stringify(body) });
 export const updateSubCategory = (id: number, body: object) => apiClient(`${SUBS_API}/${id}`,  { method: 'PUT',    body: JSON.stringify(body) });
 export const deleteSubCategory = (id: number)               => apiClient(`${SUBS_API}/${id}`,  { method: 'DELETE' });
+
+/* 
+5 Sub-category images (thumbnails) */
+// Upload ảnh cho sub-category thumbnail (API riêng)
+const SUB_CATEGORY_IMAGES_API = '/shopclothes/api/v1/sub-category-images/upload';
+
+export const uploadSubCategoryImages = async (
+  subCategoryId: number,
+  files: File[]
+) => {
+  const formData = new FormData();
+
+  // Backend yêu cầu query param: ...?subCategoryId=<id>
+  // FormData chỉ mang file ảnh
+  for (const file of files) {
+    formData.append('files', file);
+  }
+
+  return apiClient(
+    `${SUB_CATEGORY_IMAGES_API}?subCategoryId=${subCategoryId}`,
+    {
+      method: 'POST',
+      body: formData,
+    }
+  );
+};
+
 

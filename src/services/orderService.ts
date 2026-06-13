@@ -1,3 +1,5 @@
+import { apiClient } from '../utils/apiClient';
+
 const API_BASE = "/shopclothes/api/v1";
 
 export async function getUserOrders(userId: number) {
@@ -34,6 +36,12 @@ export async function getOrderDetails(orderId: number) {
 
   const data = await response.json();
   return data?.result || null;
+}
+
+export async function cancelOrder(orderId: number) {
+  return apiClient(`${API_BASE}/orders/${orderId}`, {
+    method: 'DELETE',
+  });
 }
 
 

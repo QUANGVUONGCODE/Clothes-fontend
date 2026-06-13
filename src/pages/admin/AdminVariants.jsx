@@ -64,9 +64,15 @@ export default function AdminVariants() {
         getAllVariants(),
       ]);
 
-      setProducts(prods?.result?.productResponseLists ?? []);
-      setColors(cols?.result?.colorResponseList ?? cols?.result ?? []);
-      setSizes(szs?.result?.sizeResponseList ?? szs?.result ?? []);
+      setProducts(
+        prods?.productResponseLists ??
+        prods?.result?.productResponseLists ??
+        prods?.result ??
+        prods ??
+        []
+      );
+      setColors(cols?.colorResponseList ?? cols?.result?.colorResponseList ?? cols?.result ?? cols ?? []);
+      setSizes(szs?.sizeResponseList ?? szs?.result?.sizeResponseList ?? szs?.result ?? szs ?? []);
 
       // Sửa đúng chỗ này: API trả về productVariantResponseList ở root
       setVariants(vars?.productVariantResponseList ?? []);
@@ -130,10 +136,11 @@ export default function AdminVariants() {
   const handleEdit = (variant) => {
     setEditing(variant);
     setForm({
-      product_id: variant?.product?.id?.toString() || '',
-      color_id: variant?.color?.id?.toString() || '',
-      size_id: variant?.size?.id?.toString() || '',
-      stock_quantity: variant?.stockQuantity ?? 0,
+      product_id: variant?.product?.id?.toString() || variant?.product_id?.toString?.() || '',
+      color_id: variant?.color?.id?.toString() || variant?.color_id?.toString?.() || '',
+      size_id: variant?.size?.id?.toString() || variant?.size_id?.toString?.() || '',
+      sku: variant?.sku ?? variant?.code ?? '',
+      stock_quantity: variant?.stockQuantity ?? variant?.stock_quantity ?? 0,
     });
     setShowForm(true);
   };

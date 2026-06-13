@@ -135,6 +135,7 @@ function SubCategoryShowcase() {
                 <Link
                   key={item.id}
                   to={`/sub-category/${item.id}`}
+                  state={{ subCategoryName: item.name, categoryId: item.category?.id ?? null, categoryName: item.category?.name ?? "Danh mục" }}
                   className="group w-[calc((100%-64px)/5)] min-w-[calc((100%-64px)/5)] flex-shrink-0 overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
                 >
                   <div className="aspect-[4/5] overflow-hidden bg-stone-100">

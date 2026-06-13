@@ -15,8 +15,18 @@ const [cartItems, setCartItems] = useState(() => {
   const [searchKeyword, setSearchKeyword] = useState('');
 
 const addToCart = (productData, quantity = 1, selectedColor, selectedSize, productVariantId) => {
-  const product = { ...productData, quantity, selectedColor, selectedSize, productVariantId };
-  
+  // Normalize variant id to avoid undefined falling back to a "default" bucket.
+  // If productVariantId is not provided, fall back to productData.id.
+  const normalizedVariantId = productVariantId ?? productData?.productVariantId ?? productData?.id;
+
+  const product = {
+    ...productData,
+    quantity,
+    selectedColor,
+    selectedSize,
+    productVariantId: normalizedVariantId,
+  };
+
   setCartItems((prev) => {
     const existing = prev.find(
       (item) => item.productVariantId === product.productVariantId
@@ -50,13 +60,16 @@ const addToCart = (productData, quantity = 1, selectedColor, selectedSize, produ
     });
   };
 
-  const removeFromCart = (productVariantId) => {
-    setCartItems((prev) => {
-      const newCart = prev.filter((item) => item.productVariantId !== productVariantId);
-      localStorage.setItem('cart_items', JSON.stringify(newCart));
-      return newCart;
-    });
-  };
+const removeFromCart = (productVariantId) => {
+  // normalize (tránh trường hợp UI truyền item.id trong khi item đang lưu theo productVariantId)
+  const normalizedVariantId = productVariantId;
+
+  setCartItems((prev) => {
+    const newCart = prev.filter((item) => item.productVariantId !== normalizedVariantId);
+    localStorage.setItem('cart_items', JSON.stringify(newCart));
+    return newCart;
+  });
+};
 
   const toggleWishlist = (productId) => {
     setWishlist((prev) =>

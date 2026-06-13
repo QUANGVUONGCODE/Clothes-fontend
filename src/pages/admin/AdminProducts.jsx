@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
   getProducts, createProduct, updateProduct, deleteProduct,
-  getVariantsByProduct, createVariant, updateVariant, deleteVariant,
+  getVariantsSearch, createVariant, updateVariant, deleteVariant,
   getColors, getSizes, uploadProductImages,
 } from '../../services/adminService';
 import { getDepartments } from '../../services/departmentService';
@@ -558,86 +558,48 @@ function VariantModal({ product, onClose }) {
   const [variants, setVariants]   = useState([]);
   const [colors, setColors]       = useState([]);
   const [sizes, setSizes]         = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [form, setForm]           = useState(EMPTY_VARIANT);
-  const [editingId, setEditingId] = useState(null);
-  const [saving, setSaving]       = useState(false);
+  const [loadingVariants, setLoadingVariants] = useState(false);
+  const [filterColorId, setFilterColorId] = useState('');
+  const [filterSizeId, setFilterSizeId] = useState('');
   const [deletingId, setDeletingId] = useState(null);
-  const [err, setErr]             = useState('');
 
-  const loadVariants = useCallback(async () => {
+  const loadVariants = async (colorId = null, sizeId = null) => {
+    setLoadingVariants(true);
     try {
-      const data = await getVariantsByProduct(product.id);
+      const data = await getVariantsSearch({ 
+        productId: product.id,
+        ...(colorId && { colorId }),
+        ...(sizeId && { sizeId })
+      });
       setVariants(data?.productVariantResponseList ?? data ?? []);
-    } catch (e) { console.error(e); }
-  }, [product.id]);
+    } catch (e) { 
+      console.error(e); 
+    } finally {
+      setLoadingVariants(false);
+    }
+  };
+
+  const handleFilter = () => {
+    loadVariants(filterColorId || null, filterSizeId || null);
+  };
+
+  const handleClearFilter = () => {
+    setFilterColorId('');
+    setFilterSizeId('');
+    loadVariants();
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [v, c, s] = await Promise.all([
-          getVariantsByProduct(product.id),
-          getColors(),
-          getSizes(),
-        ]);
-        setVariants(v?.productVariantResponseList ?? v ?? []);
-        setColors(c?.colorResponseList ?? c ?? []);
-        setSizes(s?.sizeResponseList ?? s ?? []);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    })();
-  }, [product.id]);
-
-  const openEdit = (v) => {
-    setEditingId(v.id);
-    setForm({
-      color_id:       v.color?.id ?? '',
-      size_id:        v.size?.id  ?? '',
-      stock_quantity: v.stockQuantity ?? '',
-    });
-    setErr('');
-  };
-
-  const resetForm = () => { setForm(EMPTY_VARIANT); setEditingId(null); setErr(''); };
-
-  const handleSave = async () => {
-    if (!form.color_id || !form.size_id || form.stock_quantity === '') {
-      setErr('Vui lòng điền đầy đủ màu, size và số lượng.');
-      return;
-    }
-    setSaving(true);
-    setErr('');
-    try {
-      const selectedColor = colors.find(c => c.id === Number(form.color_id));
-      const selectedSize  = sizes.find(s => s.id === Number(form.size_id));
-      const autoSku = selectedColor && selectedSize
-        ? `${product.slug}-${selectedColor.name}-${selectedSize.name}`.toLowerCase().replace(/\s+/g, '-')
-        : undefined;
-
-      const body = {
-        product_id:     product.id,
-        color_id:       Number(form.color_id),
-        size_id:        Number(form.size_id),
-        stock_quantity: Number(form.stock_quantity),
-        status:         'ACTIVE',
-        ...(autoSku && !editingId ? { sku: autoSku } : {}),
-      };
-      if (editingId) await updateVariant(editingId, body);
-      else           await createVariant(body);
-      await loadVariants();
-      resetForm();
-    } catch (e) {
-      setErr(e.message ?? 'Lỗi khi lưu biến thể.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    getColors().then(setColors).catch(console.error);
+    getSizes().then(setSizes).catch(console.error);
+    loadVariants();
+  }, []);
 
   const handleDelete = async (id) => {
     setDeletingId(id);
     try {
       await deleteVariant(id);
-      await loadVariants();
+      loadVariants();
     } catch (e) { alert(e.message); }
     finally { setDeletingId(null); }
   };
@@ -662,81 +624,61 @@ function VariantModal({ product, onClose }) {
 
         <div className="flex-1 overflow-y-auto">
           {/* Add / Edit form */}
-          <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/60">
-            <p className="text-sm font-bold text-slate-700 mb-3">
-              {editingId ? 'Chỉnh sửa biến thể' : 'Thêm biến thể mới'}
+          <div className="px-6 py-5 bg-slate-50/60">
+            <p className="text-sm font-bold text-slate-700 mb-4">
+              Tìm kiếm biến thể theo màu/size <span className="text-xs text-slate-500">(sản phẩm: {product.name})</span>
             </p>
-            {err && (
-              <div className="flex items-center gap-2 p-3 mb-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {err}
-              </div>
-            )}
-            <div className="grid grid-cols-3 gap-3">
-              {/* Color */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Màu sắc *</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Màu sắc</label>
                 <select
-                  value={form.color_id}
-                  onChange={e => setForm(p => ({ ...p, color_id: e.target.value }))}
+                  value={filterColorId}
+                  onChange={e => setFilterColorId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm bg-white"
                 >
-                  <option value="">Chọn màu</option>
+                  <option value="">Tất cả màu</option>
                   {colors.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
               </div>
-
-              {/* Size */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Size *</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Size</label>
                 <select
-                  value={form.size_id}
-                  onChange={e => setForm(p => ({ ...p, size_id: e.target.value }))}
+                  value={filterSizeId}
+                  onChange={e => setFilterSizeId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm bg-white"
                 >
-                  <option value="">Chọn size</option>
+                  <option value="">Tất cả size</option>
                   {sizes.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
               </div>
-
-              {/* Stock */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Số lượng *</label>
-                <input
-                  type="number" min={0}
-                  value={form.stock_quantity}
-                  onChange={e => setForm(p => ({ ...p, stock_quantity: e.target.value }))}
-                  placeholder="0"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 mt-3">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
-              >
-                {saving
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang lưu...</>
-                  : <><CheckCircle className="w-4 h-4" /> {editingId ? 'Cập nhật' : 'Thêm biến thể'}</>
-                }
-              </button>
-              {editingId && (
-                <button onClick={resetForm} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                  Huỷ
+              <div className="flex items-end gap-2">
+                <button
+                  onClick={handleFilter}
+                  disabled={loadingVariants}
+                  className="flex-1 flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  {loadingVariants
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Tìm...</>
+                    : <><Search className="w-4 h-4" /> Tìm biến thể</>
+                  }
                 </button>
-              )}
+                <button
+                  onClick={handleClearFilter}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Xóa
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Variant list */}
           <div className="px-6 py-5">
-            {loading ? (
+            {loadingVariants ? (
               <div className="flex items-center justify-center py-10 gap-2 text-slate-400">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span className="text-sm">Đang tải biến thể...</span>
@@ -785,13 +727,7 @@ function VariantModal({ product, onClose }) {
                       </div>
 
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                          onClick={() => openEdit(v)}
-                          className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
-                          title="Chỉnh sửa"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
+                        
                         <button
                           onClick={() => handleDelete(v.id)}
                           disabled={isDeleting}

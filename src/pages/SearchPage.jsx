@@ -62,7 +62,8 @@ export default function SearchPage() {
           const adaptedResults = resultsData.map(adaptBackendProduct);
           setResults(adaptedResults);
           setSearchType('image');
-          sessionStorage.removeItem('imageSearchResults');
+          // Không xóa để khi quay lại vẫn giữ danh sách.
+          // sessionStorage.removeItem('imageSearchResults');
         } catch (error) {
           console.error('Load image results error:', error);
         }
@@ -70,7 +71,21 @@ export default function SearchPage() {
     } else if (keyword) {
       performKeywordSearch(keyword);
     } else {
-      setResults([]);
+      // Nếu không có q và không có type=image, nhưng vẫn có sẵn cached ảnh
+      // (trường hợp user navigate sâu và back), thì hiển thị lại cache.
+      const savedResults = sessionStorage.getItem('imageSearchResults');
+      if (savedResults) {
+        try {
+          const resultsData = JSON.parse(savedResults);
+          const adaptedResults = resultsData.map(adaptBackendProduct);
+          setResults(adaptedResults);
+          setSearchType('image');
+        } catch {
+          setResults([]);
+        }
+      } else {
+        setResults([]);
+      }
     }
   }, [keyword, searchParams, performKeywordSearch]);
 

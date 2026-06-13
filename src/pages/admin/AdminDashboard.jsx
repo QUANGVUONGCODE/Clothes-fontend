@@ -5,6 +5,7 @@ import {
   XCircle, AlertCircle, Truck
 } from 'lucide-react';
 import { getDashboardOverview, getOrderStatus, getRecentOrders } from '../../services/adminService';
+import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../utils/format';
 
 /* ───────── mock fallback ───────── */
@@ -64,6 +65,7 @@ function ProgressBar({ label, value, max, color }) {
 
 /* ───────── page ───────── */
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [overview, setOverview]         = useState(null);
   const [orderStatus, setOrderStatus]   = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
@@ -223,7 +225,7 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">Đơn hàng gần đây</h2>
-          <button className="text-sm text-violet-600 font-semibold hover:text-violet-800 transition-colors flex items-center gap-1">
+          <button onClick={() => navigate('/admin/orders')} className="text-sm text-violet-600 font-semibold hover:text-violet-800 transition-colors flex items-center gap-1 cursor-pointer">
             Xem tất cả <ArrowRight className="w-4 h-4" />
           </button>
         </div>

@@ -3,6 +3,9 @@ import { useLocation } from "react-router-dom";
 import AppRoutes from "./routes/AppRoutes";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
+import ChatBotSlot from "./components/layout/ChatBotSlot";
+import { Toaster } from "sonner";
+
 
 function ScrollToTop() {
   const location = useLocation();
@@ -25,7 +28,15 @@ export default function App() {
       <main>
         <AppRoutes />
       </main>
+      <ChatBotSlot />
+
       {!isAdmin && <Footer />}
+
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+      />
     </div>
   );
 }

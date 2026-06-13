@@ -20,14 +20,7 @@ export default function HomePage() {
         title="SẢN PHẨM Áo NAM"
         keyword="Áo"
         limit={10}
-        viewMoreLink="/products?keyword=Áo"
-      />
-
-      <ProductKeywordSection
-        title="SẢN PHẨM QUẦN LEGGING"
-        keyword="legging"
-        limit={10}
-        viewMoreLink="/products?keyword=legging"
+        viewMoreLink="/products?keyword=Áo Nam"
       />
 
       <ProductKeywordSection
@@ -36,6 +29,7 @@ export default function HomePage() {
         limit={10}
         viewMoreLink="/products?keyword=quần"
       />
+
 
       <TestimonialSection />
       <BlogSection />

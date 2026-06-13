@@ -21,11 +21,11 @@ import AdminLayout from '../pages/admin/AdminLayout';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminProducts from '../pages/admin/AdminProducts';
 import AdminOrders from '../pages/admin/AdminOrders';
-import AdminUsers from '../pages/admin/AdminUsers';
 import AdminCategories from '../pages/admin/AdminCategories';
 import AdminAttributes from '../pages/admin/AdminAttributes';
 import AdminVariants from '../pages/admin/AdminVariants';
 import { useAuth } from '../context/AuthContext';
+import PaymentCallback from '../pages/payments/PaymentCallback';
 
 function AdminGuard({ children }) {
   const { user, loading } = useAuth();
@@ -57,11 +57,12 @@ export default function AppRoutes() {
       <Route path="/register" element={<AuthPage />} />
       <Route path="/search" element={<SearchPage />} />
       <Route path="/cart" element={<CartPage />} />
-      <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/checkout" element={< CheckoutPage />} />
       <Route path="/wishlist" element={<WishlistPage />} />
       <Route path="/account" element={<AccountPage />} />
       <Route path="/account/create" element={<CreateAccountPage />} />
       <Route path="/order-tracking" element={<OrderTrackingPage />} />
+      <Route path="/payments/payment-callback" element={<PaymentCallback />} />
       <Route path="*" element={<NotFoundPage />} />
       <Route path="/department/:id" element={<DepartmentProductPage />} />
       <Route path="/category/:id" element={<CategoryProductPage />} />
@@ -78,7 +79,7 @@ export default function AppRoutes() {
               <Route path="categories" element={<AdminCategories />} />
               <Route path="attributes" element={<AdminAttributes />} />
               <Route path="orders" element={<AdminOrders />} />
-              <Route path="users" element={<AdminUsers />} />
+
             </Routes>
           </AdminLayout>
         </AdminGuard>

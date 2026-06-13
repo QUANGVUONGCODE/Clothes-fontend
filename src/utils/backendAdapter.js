@@ -14,8 +14,26 @@ export function adaptBackendProduct(backendProduct) {
     description: backendProduct.description,
     shortDescription: backendProduct.shortDescription,
     images: [imageUrl],
-    colors: backendProduct.color ? [backendProduct.color.name] : [],
-    sizes: backendProduct.size ? [backendProduct.size.name] : ['M', 'L', 'XL'],
+
+    // Colors
+    // - UI yêu cầu color code/id để render "màu" dạng dots/hoặc hiển thị màu.
+    // - Nếu backend trả về color như một string/name thì vẫn fallback an toàn.
+    colors:
+      backendProduct?.color?.code || backendProduct?.color?.id
+        ? [backendProduct.color]
+        : backendProduct.color?.name
+          ? [backendProduct.color.name]
+          : backendProduct?.colors
+            ? backendProduct.colors
+            : [],
+
+    sizes:
+      backendProduct?.size?.name
+        ? [backendProduct.size.name]
+        : backendProduct?.sizes
+          ? backendProduct.sizes
+          : ['M', 'L', 'XL'],
+
     badge: backendProduct.subCategory?.name || '',
     discount: backendProduct.discountPercent || 0,
   };

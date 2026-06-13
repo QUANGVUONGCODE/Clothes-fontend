@@ -2,13 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, X, Loader2, AlertTriangle, CheckCircle,
-  FolderOpen, ChevronDown,
+  FolderOpen, ChevronDown, Camera,
 } from 'lucide-react';
+import { getProductImageUrl } from '../../services/subCategoryService';
 import {
   getAllDepartments, createDepartment, updateDepartment, deleteDepartment,
   getCatsByDept,    createCategory,    updateCategory,    deleteCategory,
   getSubCatsByCat,  createSubCategory, updateSubCategory, deleteSubCategory,
+  uploadSubCategoryImages,
 } from '../../services/adminService';
+
 
 /* ─── shared tiny components ─── */
 function Err({ msg }) {
@@ -402,23 +405,43 @@ function CategoriesTab() {
 ════════════════════════════════════════ */
 function SubCatModal({ initial, cats, onClose, onSaved }) {
   const [name, setName]     = useState(initial?.name ?? '');
-  const [catId, setCatId]   = useState(initial?.catId ?? '');
+  const [catId, setCatId]   = useState(initial?.catId ?? initial?.category_id ?? '');
+
+
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState('');
   const isEdit = !!initial?.id;
 
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !catId) { setErr('Vui lòng điền đầy đủ thông tin.'); return; }
+    if (!name.trim() || !catId) {
+      setErr('Vui lòng điền đầy đủ thông tin.');
+      return;
+    }
+
     setSaving(true);
     try {
-      const body = { name: name.trim(), category_id: Number(catId) };
-      if (isEdit) await updateSubCategory(initial.id, body);
-      else        await createSubCategory(body);
+      const baseBody = {
+        name: name.trim(),
+        category_id: Number(catId),
+      };
+
+      if (isEdit) {
+        await updateSubCategory(initial.id, baseBody);
+      } else {
+        await createSubCategory(baseBody);
+      }
+
+      // Upload thumbnail đã tách sang API khác (sub-category-images/upload),
+      // hiện tại chỉ xử lý CRUD sub-category.
       onSaved();
     } catch (error) {
       setErr(error.message ?? 'Có lỗi xảy ra.');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -428,8 +451,10 @@ function SubCatModal({ initial, cats, onClose, onSaved }) {
           <h2 className="text-lg font-bold text-slate-900">{isEdit ? 'Sửa danh mục con' : 'Thêm danh mục con'}</h2>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 transition-colors"><X className="w-5 h-5 text-slate-500" /></button>
         </div>
+
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <Err msg={err} />
+
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tên danh mục con <span className="text-red-500">*</span></label>
             <input
@@ -438,6 +463,7 @@ function SubCatModal({ initial, cats, onClose, onSaved }) {
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm"
             />
           </div>
+
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Danh mục <span className="text-red-500">*</span></label>
             <div className="relative">
@@ -451,6 +477,9 @@ function SubCatModal({ initial, cats, onClose, onSaved }) {
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
           </div>
+
+
+
           <div className="flex items-center justify-end gap-3 pt-1">
             <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">Huỷ</button>
             <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors">
@@ -463,8 +492,133 @@ function SubCatModal({ initial, cats, onClose, onSaved }) {
   );
 }
 
+function UploadThumbButton({ subCategoryId, onUploaded }) {
+  const [open, setOpen] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handlePick = (e) => {
+    const list = Array.from(e.target.files || []);
+    setFiles(list);
+    setError('');
+  };
+
+  const handleUpload = async () => {
+    if (!subCategoryId) return;
+    if (files.length === 0) {
+      setError('Chọn ít nhất 1 ảnh.');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+    try {
+      // Upload API riêng: /sub-categories/sub-category-images/upload?subCategoryId=...
+      await uploadSubCategoryImages(Number(subCategoryId), files);
+      setOpen(false);
+      setFiles([]);
+      if (onUploaded) onUploaded();
+    } catch (e) {
+      setError(e?.message ?? 'Upload ảnh thất bại.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="p-2 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors"
+        title="Thêm ảnh"
+      >
+        <Camera className="w-4 h-4" />
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900">Upload ảnh</h2>
+              <button
+                onClick={() => setOpen(false)}
+                className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {error && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {error}
+                </div>
+              )}
+
+              <div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePick}
+                  className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border file:border-slate-200 file:bg-white file:text-sm file:font-semibold hover:file:bg-slate-50"
+                />
+                <p className="mt-2 text-xs text-slate-500">Chọn ảnh để upload thumbnail cho danh mục con.</p>
+              </div>
+
+              {files.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {files.map((f, idx) => (
+                    <img
+                      key={idx}
+                      src={URL.createObjectURL(f)}
+                      alt={`preview-${idx}`}
+                      className="w-full h-20 object-cover rounded-lg border border-slate-200 bg-white"
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUpload}
+                  disabled={uploading}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors flex items-center gap-2"
+                >
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : null}
+                  {uploading ? 'Đang upload...' : 'Upload'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function SubCategoriesTab() {
+
   const [depts, setDepts]         = useState([]);
+
   const [selDept, setSelDept]     = useState('');
   const [cats, setCats]           = useState([]);
   const [selCat, setSelCat]       = useState('');
@@ -589,36 +743,60 @@ function SubCategoriesTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {subs.length === 0
-                  ? <EmptyRow cols={5} icon={FolderOpen} label="Chưa có danh mục con nào" />
-                  : subs.map(s => (
-                    <tr key={s.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-6 py-3.5 text-slate-400 font-mono text-xs">{s.id}</td>
-                      <td className="px-6 py-3.5 font-semibold text-slate-800">{s.name}</td>
-                      <td className="px-6 py-3.5">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                          {s.category?.name ?? cats.find(c => String(c.id) === selCat)?.name ?? '—'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3.5 text-slate-500 text-xs">
-                        {s.category?.department?.name ?? depts.find(d => String(d.id) === selDept)?.name ?? '—'}
-                      </td>
-                      <td className="px-6 py-3.5">
-                        <div className="flex items-center gap-1.5 justify-end">
-                          <button
-                            onClick={() => setModal({ id: s.id, name: s.name, catId: s.category?.id ?? selCat })}
-                            className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Sửa"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDelTarget(s)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Xoá">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                }
+                {subs.length === 0 ? (
+                  <EmptyRow cols={5} icon={FolderOpen} label="Chưa có danh mục con nào" />
+                ) : (
+                  subs.map((s) => {
+                    const thumbUrl = getProductImageUrl(s.thumbnail ?? s?.image ?? null);
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-6 py-3.5 text-slate-400 font-mono text-xs">{s.id}</td>
+                        <td className="px-6 py-3.5">
+                          <div className="flex items-center gap-3">
+                            {thumbUrl ? (
+                              <img
+                                src={thumbUrl}
+                                alt={s.name}
+                                className="w-8 h-8 rounded-lg object-cover border border-slate-200 bg-white flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-400 text-[10px] flex items-center justify-center flex-shrink-0">—</div>
+                            )}
+                            <span className="font-semibold text-slate-800">{s.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                            {s.category?.name ?? cats.find((c) => String(c.id) === selCat)?.name ?? '—'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3.5 text-slate-500 text-xs">
+                          {s.category?.department?.name ?? depts.find((d) => String(d.id) === selDept)?.name ?? '—'}
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <div className="flex items-center gap-1.5 justify-end">
+                            <button
+                              onClick={() => setModal({ id: s.id, name: s.name, catId: s.category?.id ?? selCat })}
+                              className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Sửa"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+
+                            <UploadThumbButton subCategoryId={s.id} onUploaded={() => loadSubs(selCat)} />
+
+                            <button
+                              onClick={() => setDelTarget(s)}
+                              className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                              title="Xoá"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
